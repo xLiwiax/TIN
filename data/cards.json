@@ -1,0 +1,22 @@
+[
+    { "id": 1, "name": "V", "strength": 15, "row": "close", "color": "rgba(0, 240, 255, 0.25)" },
+    { "id": 2, "name": "Songbird", "strength": 15, "row": "ranged", "color": "rgba(157, 78, 221, 0.25)" },
+    { "id": 3, "name": "Adam Smasher", "strength": 15, "row": "close", "color": "rgba(255, 82, 82, 0.3)" },
+    { "id": 4, "name": "Johnny Silverhand", "strength": 15, "row": "close", "color": "rgba(252, 238, 10, 0.25)" },
+    { "id": 5, "name": "Jackie Welles", "strength": 8, "row": "close", "color": "rgba(255, 82, 82, 0.2)" },
+    { "id": 6, "name": "Judy Alvarez", "strength": 6, "row": "ranged", "color": "rgba(157, 78, 221, 0.2)" },
+    { "id": 7, "name": "Panam Palmer", "strength": 9, "row": "ranged", "color": "rgba(76, 209, 55, 0.25)" },
+    { "id": 8, "name": "River Ward", "strength": 7, "row": "close", "color": "rgba(0, 240, 255, 0.2)" },
+    { "id": 9, "name": "Victor Vector", "strength": 5, "row": "siege", "color": "rgba(0, 240, 255, 0.2)" },
+    { "id": 10, "name": "Rogue Amendiares", "strength": 9, "row": "close", "color": "rgba(157, 78, 221, 0.2)" },
+    { "id": 11, "name": "Kerry Eurodyne", "strength": 4, "row": "ranged", "color": "rgba(252, 238, 10, 0.2)" },
+    { "id": 12, "name": "Goro Takemura", "strength": 8, "row": "close", "color": "rgba(0, 240, 255, 0.2)" },
+    { "id": 13, "name": "Solomon Reed", "strength": 10, "row": "close", "color": "rgba(76, 209, 55, 0.2)" },
+    { "id": 14, "name": "Kurt Hansen", "strength": 11, "row": "siege", "color": "rgba(255, 82, 82, 0.2)" },
+    { "id": 15, "name": "Rosalind Myers", "strength": 8, "row": "siege", "color": "rgba(255, 82, 82, 0.2)" },
+    { "id": 16, "name": "David", "strength": 12, "row": "close", "color": "rgba(252, 238, 10, 0.25)" },
+    { "id": 17, "name": "Lucy", "strength": 4, "row": "ranged", "color": "rgba(0, 240, 255, 0.3)", "specialAbility": "draw_card" },
+    { "id": 18, "name": "Rebecca", "strength": 10, "row": "ranged", "color": "rgba(255, 82, 82, 0.25)" },
+    { "id": 19, "name": "Maine", "strength": 8, "row": "close", "color": "rgba(76, 209, 55, 0.2)" },
+    { "id": 20, "name": "Faraday", "strength": 4, "row": "ranged", "color": "rgba(252, 238, 10, 0.3)", "specialAbility": "draw_card" }
+]

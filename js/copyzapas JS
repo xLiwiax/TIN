@@ -1,0 +1,637 @@
+
+// 1. KLASA KARTY I BAZA DANYCH 
+
+class Card {
+    constructor(id, name, strength, row, color, specialAbility = null) {
+        this.id = id;
+        this.name = name;
+        this.baseStrength = strength;
+        this.currentStrength = strength;
+        this.row = row;
+        this.color = color;
+        this.specialAbility = specialAbility;
+    }
+
+    resetStrength() {
+        this.currentStrength = this.baseStrength;
+    }
+}
+
+
+let CARD_DATABASE = [];
+
+async function loadCardsData() {
+    try {
+        const response = await fetch('data/cards.json');
+        
+        if (!response.ok) {
+            throw new Error(`Błąd HTTP ładowania bazy kart! Status: ${response.status}`);
+        }
+        
+        const rawData = await response.json();
+        
+
+        CARD_DATABASE = rawData.map(c => new Card(
+            c.id, 
+            c.name, 
+            c.strength, 
+            c.row, 
+            c.color, 
+            c.specialAbility || null
+        ));
+        
+        console.log('Talia kart została pomyślnie wczytana asynchronicznie z pliku JSON!', CARD_DATABASE);
+    } catch (error) {
+        console.error('Krytyczny błąd podczas ładowania bazy kart:', error);
+        alert('Krytyczny błąd gry: Nie można załadować bazy kart z serwera.');
+    }
+}
+
+
+// 2. STAN APLIKACJI I ROZGRYWKI
+
+const routingContainer = document.getElementById('routing-container');
+const API_URL = 'http://localhost:3000/api/ranking';
+
+let deckPool = [];
+let playerHand = [];
+let botHand = [];
+
+let playerBoard = { close: [], ranged: [], siege: [] };
+let botBoard = { close: [], ranged: [], siege: [] };
+
+let playerWins = 0;
+let botWins = 0;
+let playerPassed = false;
+let botPassed = false;
+
+// Flagi systemowe wymuszające stabilny podział tur i rund
+let isBotTurning = false;
+let isRoundEnding = false; //anty-konfliktowy 
+
+// Licznik czasu gry
+let gameTimerInterval = null;
+let gameSeconds = 0;
+
+// Zmienna przechowująca tekst informacyjny o nowej rundzie
+let roundMessageBanner = "";
+
+
+// 3. ZARZĄDZANIE WIDOKAMI (Routing SPA)
+
+
+function renderMainMenu() {
+    clearInterval(gameTimerInterval); // Reset timera przy powrocie do menu
+    routingContainer.innerHTML = `
+        <div class="menu-container">
+            <h2 class="menu-welcome">Witaj w Karczmie, Wiedźminie</h2>
+            <div class="menu-buttons">
+                <button id="start-game-btn" class="menu-btn">Rozpocznij Grę</button>
+                <button id="view-ranking-btn" class="menu-btn btn-secondary">Zobacz Ranking</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('start-game-btn').addEventListener('click', startNewGame);
+    document.getElementById('view-ranking-btn').addEventListener('click', renderRankingView);
+}
+
+function renderRankingView() {
+    routingContainer.innerHTML = `
+        <div class="ranking-container">
+            <h3>🏆 Top 10 Graczy</h3>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th>Miejsce</th>
+                        <th>Gracz</th>
+                        <th>Wynik</th>
+                        <th>Czas</th>
+                    </tr>
+                </thead>
+                <tbody id="ranking-rows">
+                    <tr>
+                        <td colspan="4">Ładowanie wyników z bazy...</td>
+                    </tr>
+                </tbody>
+            </table>
+            <button id="back-to-menu-btn" class="menu-btn">Powrót do Menu</button>
+        </div>
+    `;
+    document.getElementById('back-to-menu-btn').addEventListener('click', renderMainMenu);
+    
+    // Asynchroniczne wywołanie pobrania danych z API od razu po wyrenderowaniu tabeli
+    loadRankingData();
+}
+
+function renderGameBoard() {
+    routingContainer.innerHTML = `
+        <div class="game-container">
+            <aside class="sidebar">
+                <div class="timer">Czas gry: <span id="game-time">00:00</span></div>
+                
+                <div class="score-board">
+                    <div class="score-row bot-score">
+                        <h4>Przeciwnik (Bot)</h4>
+                        <p>Punkty: <span id="bot-round-score" class="total-score-val">0</span></p>
+                        <p>Rundy: <span id="bot-wins">0</span> / 3</p>
+                        <div id="bot-status" class="status-indicator">W grze</div>
+                    </div>
+                    
+                    <hr class="sidebar-divider">
+                    
+                    <div class="score-row player-score">
+                        <h4>Gracz</h4>
+                        <p>Punkty: <span id="player-round-score" class="total-score-val">0</span></p>
+                        <p>Rundy: <span id="player-wins">0</span> / 3</p>
+                        <div id="player-status" class="status-indicator">Twoja tura</div>
+                    </div>
+                </div>
+
+                <button id="pass-btn" class="game-action-btn">Pasuję Rundę</button>
+                <button id="quit-btn" class="game-action-btn btn-quit">Ucieknij z bitwy</button>
+            </aside>
+
+            <main class="game-board">
+                <div class="board-half bot-half">
+                    <div class="battle-row siege" data-row="siege" id="bot-siege">
+                        <div class="row-info"><div>⚙️</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                    <div class="battle-row ranged" data-row="ranged" id="bot-ranged">
+                        <div class="row-info"><div>🏹</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                    <div class="battle-row close" data-row="close" id="bot-close">
+                        <div class="row-info"><div>⚔️</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                </div>
+
+                <div class="board-half player-half">
+                    <div class="battle-row close" data-row="close" id="player-close">
+                        <div class="row-info"><div>⚔️</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                    <div class="battle-row ranged" data-row="ranged" id="player-ranged">
+                        <div class="row-info"><div>🏹</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                    <div class="battle-row siege" data-row="siege" id="player-siege">
+                        <div class="row-info"><div>⚙️</div><span class="row-counter">0</span></div>
+                        <div class="card-slots"></div>
+                    </div>
+                </div>
+
+                <footer class="player-hand-section">
+                    <div class="hand-header">Twoje karty na ręku (<span id="hand-count">0</span>/10)</div>
+                    <div id="player-hand" class="cards-hand-container"></div>
+                </footer>
+            </main>
+        </div>
+    `;
+
+    // Event Listeners na stole bitewnym
+    document.getElementById('quit-btn').addEventListener('click', () => {
+        if(confirm("Czy na pewno chcesz opuścić karczmę? Stracisz punkty!")) {
+            renderMainMenu();
+        }
+    });
+
+    document.getElementById('pass-btn').addEventListener('click', playerPassTurn);
+}
+
+
+// 4. LOGIKA I MECHANIKA GRY (JS Funkcyjne)
+
+
+function startNewGame() {
+    // 1. Reset parametrów rozgrywki
+    playerWins = 0;
+    botWins = 0;
+    playerPassed = false;
+    botPassed = false;
+    isBotTurning = false;
+    isRoundEnding = false; 
+    roundMessageBanner = "";
+    gameSeconds = 0;
+    resetBoardState();
+
+    // 2. Klonowanie i potrajanie bazy kart
+    const extendedDatabase = [...CARD_DATABASE, ...CARD_DATABASE, ...CARD_DATABASE];
+    deckPool = extendedDatabase.map(card => new Card(card.id + Math.random(), card.name, card.baseStrength, card.row, card.color, card.specialAbility));
+    
+    // Tasowanie Fisher-Yates
+    for (let i = deckPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deckPool[i], deckPool[j]] = [deckPool[j], deckPool[i]];
+    }
+
+    // 3. Rozdanie po 10 unikalnych, losowych kart z bazy danych
+    playerHand = deckPool.splice(0, 10);
+    botHand = deckPool.splice(0, 10);
+
+    // 4. Budowanie struktury DOM i uruchomienie timera meczu
+    renderGameBoard();
+    updateDOM();
+    startTimer();
+}
+
+function resetBoardState() {
+    playerBoard = { close: [], ranged: [], siege: [] };
+    botBoard = { close: [], ranged: [], siege: [] };
+    playerPassed = false;
+    botPassed = false;
+    isBotTurning = false; 
+}
+
+function startTimer() {
+    if (gameTimerInterval) clearInterval(gameTimerInterval);
+    gameTimerInterval = setInterval(() => {
+        gameSeconds++;
+        const mins = String(Math.floor(gameSeconds / 60)).padStart(2, '0');
+        const secs = String(gameSeconds % 60).padStart(2, '0');
+        const timerSpan = document.getElementById('game-time');
+        if (timerSpan) timerSpan.textContent = `${mins}:${secs}`;
+    }, 1000);
+}
+
+function updateDOM() {
+    document.getElementById('player-wins').textContent = playerWins;
+    document.getElementById('bot-wins').textContent = botWins;
+    document.getElementById('hand-count').textContent = playerHand.length;
+
+    if (roundMessageBanner !== "") {
+        document.getElementById('player-status').textContent = roundMessageBanner;
+    } else if (playerPassed) {
+        document.getElementById('player-status').textContent = "Spasował";
+    } else if (isBotTurning) {
+        document.getElementById('player-status').textContent = "Oczekiwanie na bota...";
+    } else {
+        document.getElementById('player-status').textContent = "Twoja tura";
+    }
+
+    document.getElementById('bot-status').textContent = botPassed ? "Spasował" : "W grze";
+    
+    const rows = ['close', 'ranged', 'siege'];
+    
+    rows.forEach(rowType => {
+        // Render rzędów Gracza
+        const pRowContainer = document.querySelector(`#player-${rowType} .card-slots`);
+        pRowContainer.innerHTML = '';
+        playerBoard[rowType].forEach(card => pRowContainer.appendChild(createCardDOM(card)));
+
+        // Render rzędów Bota
+        const bRowContainer = document.querySelector(`#bot-${rowType} .card-slots`);
+        bRowContainer.innerHTML = '';
+        botBoard[rowType].forEach(card => bRowContainer.appendChild(createCardDOM(card)));
+    });
+
+    calculateScores();
+    renderPlayerHandDOM();
+}
+
+function createCardDOM(card) {
+    const cardEl = document.createElement('div');
+    cardEl.className = `game-card`;
+    cardEl.style.backgroundColor = card.color;
+
+    cardEl.innerHTML = `
+        <div class="card-top-row">
+            <div class="card-strength">${card.currentStrength}</div>
+            <div class="card-type-icon">${card.row === 'close' ? '⚔️' : card.row === 'ranged' ? '🏹' : '⚙️'}</div>
+        </div>
+        <div class="card-name">${card.name}</div>
+    `;
+    return cardEl;
+}
+
+function renderPlayerHandDOM() {
+    const handContainer = document.getElementById('player-hand');
+    handContainer.innerHTML = '';
+
+    // Zabezpieczenie przed ruchem bota lub pasem
+    if (playerPassed || isBotTurning) return;
+
+    playerHand.forEach((card, index) => {
+        const cardEl = createCardDOM(card);
+        cardEl.addEventListener('click', () => playerPlayCard(index));
+        handContainer.appendChild(cardEl);
+    });
+}
+
+function calculateScores() {
+    let playerTotal = 0;
+    let botTotal = 0;
+    const rows = ['close', 'ranged', 'siege'];
+
+    rows.forEach(rowType => {
+        const pRowSum = playerBoard[rowType].reduce((sum, card) => sum + card.currentStrength, 0);
+        document.querySelector(`#player-${rowType} .row-counter`).textContent = pRowSum;
+        playerTotal += pRowSum;
+
+        const bRowSum = botBoard[rowType].reduce((sum, card) => sum + card.currentStrength, 0);
+        document.querySelector(`#bot-${rowType} .row-counter`).textContent = bRowSum;
+        botTotal += bRowSum;
+    });
+
+    document.getElementById('player-round-score').textContent = playerTotal;
+    document.getElementById('bot-round-score').textContent = botTotal;
+}
+
+
+// 5. TURY I AI BOTA (Sztuczna Inteligencja)
+
+
+function playerPlayCard(index) {
+    if (isBotTurning || playerPassed) return;
+
+    roundMessageBanner = "";
+
+    const card = playerHand.splice(index, 1)[0];
+    
+    if (card.specialAbility === 'draw_card') {
+        botBoard[card.row].push(card);
+        const drawn = deckPool.splice(0, 2);
+        playerHand.push(...drawn);
+    } else {
+        playerBoard[card.row].push(card);
+    }
+
+    if (!botPassed && botHand.length > 0) {
+        isBotTurning = true;
+        updateDOM();
+        setTimeout(botTurn, 800);
+    } else {
+        isBotTurning = false;
+        updateDOM();
+        if (playerHand.length === 0) {
+            playerPassTurn();
+        }
+    }
+}
+
+function playerPassTurn() {
+    playerPassed = true;
+    isBotTurning = false;
+    roundMessageBanner = "";
+    updateDOM();
+    
+    if (!botPassed && botHand.length > 0) {
+        const botDecidesToPlay = Math.random() < 0.5;
+
+        if (botDecidesToPlay) {
+            const card = botHand.splice(0, 1)[0];
+            if (card.specialAbility === 'draw_card') {
+                playerBoard[card.row].push(card);
+                const drawn = deckPool.splice(0, 2);
+                botHand.push(...drawn);
+            } else {
+                botBoard[card.row].push(card);
+            }
+            
+            botPassed = true;
+            isBotTurning = false;
+            updateDOM();
+            setTimeout(checkRoundWinner, 1000);
+        } else {
+            botPassed = true;
+            isBotTurning = false;
+            updateDOM();
+            setTimeout(checkRoundWinner, 1000);
+        }
+    } else {
+        checkRoundWinner();
+    }
+}
+
+function botTurn() {
+    if (botPassed || botHand.length === 0) {
+        botPassed = true;
+        isBotTurning = false;
+        updateDOM();
+        return;
+    }
+
+    const pScore = parseInt(document.getElementById('player-round-score').textContent) || 0;
+    const bScore = parseInt(document.getElementById('bot-round-score').textContent) || 0;
+
+    if (playerPassed && bScore > pScore) {
+        botPassed = true;
+        isBotTurning = false;
+        updateDOM();
+        checkRoundWinner();
+        return;
+    }
+
+    const card = botHand.splice(0, 1)[0];
+
+    if (card.specialAbility === 'draw_card') {
+        playerBoard[card.row].push(card);
+        const drawn = deckPool.splice(0, 2);
+        botHand.push(...drawn);
+    } else {
+        botBoard[card.row].push(card);
+    }
+
+    if (botHand.length === 0) {
+        botPassed = true;
+    }
+
+    isBotTurning = false;
+    updateDOM();
+
+    if (playerPassed && !botPassed) {
+        isBotTurning = true;
+        updateDOM();
+        setTimeout(botTurn, 800);
+    } else {
+        if (playerHand.length === 0 && !playerPassed) {
+            playerPassTurn();
+        }
+    }
+}
+
+// 6. ROZSTRZYGNIĘCIE RUNDY I KOŃCA GRY
+
+
+function checkRoundWinner() {
+    if (isRoundEnding) return;
+    isRoundEnding = true;
+
+    const pScore = parseInt(document.getElementById('player-round-score').textContent) || 0;
+    const bScore = parseInt(document.getElementById('bot-round-score').textContent) || 0;
+
+    if (pScore > bScore) {
+        playerWins++;
+        roundMessageBanner = `Wygrałeś rundę! Wynik: ${pScore} do ${bScore}`;
+    } else if (bScore > pScore) {
+        botWins++;
+        roundMessageBanner = `Bot wygrał rundę! Wynik: ${bScore} do ${pScore}`;
+    } else {
+        playerWins++;
+        botWins++;
+        roundMessageBanner = `Remis w rundzie! Wynik: ${pScore} do ${bScore}`;
+    }
+
+    // Blokujemy stół na czas wyświetlania bannera podsumowania
+    isBotTurning = true; 
+    updateDOM();
+
+    setTimeout(() => {
+        if (playerWins >= 3 || botWins >= 3) {
+            endGame();
+        } else {
+            resetBoardState();
+            
+            const playerDrawCount = Math.min(3, 10 - playerHand.length);
+            const botDrawCount = Math.min(3, 10 - botHand.length);
+            
+            playerHand.push(...deckPool.splice(0, playerDrawCount));
+            botHand.push(...deckPool.splice(0, botDrawCount));
+            
+            // Czysty reset stanów przed kolejnym etapem gry
+            playerPassed = false;
+            botPassed = false;
+            isBotTurning = false;
+
+            // Zdejmujemy blokadę rundy – silnik jest czysty
+            isRoundEnding = false;
+
+            // Ustawiamy tekst informacyjny o kolejnej rundzie
+            roundMessageBanner = `Nowa runda! Dobrano karty. Twój ruch.`;
+            updateDOM();
+            
+            if (playerHand.length === 0 && botHand.length > 0) {
+                playerPassTurn();
+            }
+        }
+    }, 3000); 
+}
+
+
+// 7. INNE WIDOKI I FORMULARZ KOŃCOWY
+
+
+function endGame() {
+    clearInterval(gameTimerInterval);
+    
+    let resultTitle = "";
+    let resultClass = "";
+    if (playerWins > botWins) {
+        resultTitle = "ZWYCIĘSTWO!";
+        resultClass = "win-theme";
+    } else if (botWins > playerWins) {
+        resultTitle = "PRZEGRANA...";
+        resultClass = "lose-theme";
+    } else {
+        resultTitle = "REMIS";
+        resultClass = "draw-theme";
+    }
+
+    const finalTime = document.getElementById('game-time').textContent;
+    const finalScore = parseInt(document.getElementById('player-round-score').textContent);
+
+    routingContainer.innerHTML = `
+        <div class="end-game-screen ${resultClass}">
+            <h2 class="end-game-title">${resultTitle}</h2>
+            <p class="end-game-subtitle">Bitwa dobiegła końca</p>
+            
+            <div class="end-game-stats">
+                <div class="stat-box">
+                    <span>Twój wynik:</span>
+                    <strong>${finalScore} pkt</strong>
+                </div>
+                <div class="stat-box">
+                    <span>Czas bitwy:</span>
+                    <strong>${finalTime}</strong>
+                </div>
+            </div>
+            
+            <form id="ranking-form" class="end-game-form">
+                <label for="player-name-input">Wpisz swoje imię do kroniki karczmy:</label>
+                <input type="text" id="player-name-input" required minlength="3" maxlength="15" placeholder="Geralt" autofocus>
+                <div class="form-buttons">
+                    <button type="submit" class="menu-btn">Zapisz wynik w bazie</button>
+                    <button type="button" id="skip-ranking-btn" class="menu-btn btn-secondary">Pomiń</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById('ranking-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('player-name-input').value;
+
+        const scoreData = {
+            name: username,
+            score: finalScore,
+            time: finalTime
+        };
+
+        await sendScoreToRanking(scoreData);
+        renderMainMenu();
+    });
+
+    document.getElementById('skip-ranking-btn').addEventListener('click', renderMainMenu);
+}
+
+// 8. KOMUNIKACJA SIEĆIOWA AJAX / FETCH API
+
+
+async function sendScoreToRanking(scoreData) {
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(scoreData)
+        });
+
+        if (!response.ok) throw new Error('Błąd serwera przy zapisie rankingu');
+        alert('Twój wynik został zapisany w bazie danych!');
+    } catch (error) {
+        console.error(error);
+        alert('Nie udało się skomunikować z bazą danych rankingu.');
+    }
+}
+
+async function loadRankingData() {
+    const rowsContainer = document.getElementById('ranking-rows');
+    if (!rowsContainer) return;
+
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error('Nie udało się pobrać danych rankingowych');
+        
+        const ranking = await response.json();
+        rowsContainer.innerHTML = '';
+
+        if (ranking.length === 0) {
+            rowsContainer.innerHTML = `<tr><td colspan="4">Tabela jest pusta. Bądź pierwszy!</td></tr>`;
+            return;
+        }
+
+        ranking.forEach((player, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${index + 1}</strong></td>
+                <td>${player.name}</td>
+                <td>${player.score} pkt</td>
+                <td>${player.time}</td>
+            `;
+            rowsContainer.appendChild(tr);
+        });
+    } catch (error) {
+        console.error(error);
+        rowsContainer.innerHTML = `<tr><td colspan="4" style="color: #ff5555;">Błąd połączenia z bazą danych rankingu. Uruchom serwer Node!</td></tr>`;
+    }
+}
+
+async function initApp() {
+    await loadCardsData();
+    renderMainMenu();
+}
+
+initApp();
