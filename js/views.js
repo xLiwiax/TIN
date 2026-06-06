@@ -157,7 +157,17 @@ export function renderEndGameView() {
     document.getElementById('ranking-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = document.getElementById('player-name-input').value;
-        await sendScoreToRanking({ name: username, score: finalScore, time: finalTime });
+        
+        // Sprawdzenie, czy gracz realnie wygrał z botem
+        const playerWon = playerWins > botWins;
+
+        // Wysyłamy dodatkową flagę isWin do serwera
+        await sendScoreToRanking({ 
+            name: username, 
+            score: finalScore, 
+            time: finalTime,
+            isWin: playerWon 
+        });
         renderMainMenu();
     });
     document.getElementById('skip-ranking-btn').addEventListener('click', renderMainMenu);

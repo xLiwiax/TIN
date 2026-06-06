@@ -217,15 +217,23 @@ function checkRoundWinner() {
 }
 
 // 3. OBSŁUGA RANKINGU (API)
+// Wysyłanie wyniku z uwzględnieniem statusu wygranej
 export async function sendScoreToRanking(scoreData) {
     try {
-        const response = await fetch(cfg.API_URL, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(scoreData)
+        const response = await fetch('/api/ranking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(scoreData) 
         });
-        if (!response.ok) throw new Error();
-        alert('Wynik zapisany w bazie danych!');
-    } catch (error) { alert('Błąd zapisu do bazy.'); }
+
+        if (!response.ok) throw new Error('Błąd odpowiedzi serwera');
+        alert('Logi sesji pomyślnie zapisane w chmurze.');
+    } catch (error) {
+        console.error(error);
+        alert('Krytyczny błąd zapisu danych.');
+    }
 }
 
 export async function loadRankingData() {

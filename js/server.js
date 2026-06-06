@@ -24,12 +24,24 @@ function readRankingFile() {
 }
 
 // --------------------------------------API GET
-// Pobieranie top 10 wyników malejąco
 app.get('/api/ranking', (req, res) => {
     try {
         const ranking = readRankingFile();
-        const sortedRanking = ranking.sort((a, b) => b.score - a.score).slice(0, 10);
-        res.json(sortedRanking);
+        
+        //"MM:SS" na sekundy
+        const timeToSeconds = (timeStr) => {
+            if (!timeStr || !timeStr.includes(':')) return 999999;
+            const [minutes, seconds] = timeStr.split(':').map(Number);
+            return (minutes * 60) + seconds;
+        };
+
+        // Filtrowanie (tylko wygrane) i sortowanie od najkrótszego czasu
+        const filteredRanking = ranking
+            .filter(player => player.isWin === true)
+            .sort((a, b) => timeToSeconds(a.time) - timeToSeconds(b.time))
+            .slice(0, 10);
+
+        res.json(filteredRanking);
     } catch (error) {
         res.status(500).json({ error: 'Błąd odczytu bazy danych' });
     }

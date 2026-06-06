@@ -501,3 +501,132 @@ body {
   padding: 12px;
   font-size: 0.85rem;
 }
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .global-header,
+  .global-footer {
+    display: none !important;
+  }
+  #routing-container {
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .game-container {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    width: 100vw;
+    height: 100vh;
+    gap: 5px;
+    padding: 5px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .sidebar {
+    height: 100%;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    border-right: 1px solid #9d4edd;
+  }
+  .sidebar .timer {
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+  }
+  .sidebar .score-board {
+    margin-bottom: 5px;
+  }
+  .sidebar .score-board h4 {
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+  }
+  .sidebar .score-board p {
+    margin: 2px 0;
+    font-size: 0.75rem;
+  }
+  .sidebar .sidebar-divider {
+    margin: 5px 0;
+  }
+  .sidebar .status-indicator {
+    padding: 2px;
+    font-size: 0.7rem;
+  }
+  .sidebar .game-action-btn {
+    padding: 6px;
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  .game-board {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
+  }
+  .board-half {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .battle-row {
+    height: 45px !important;
+    min-height: 45px !important;
+    padding: 2px 5px;
+  }
+  .battle-row .row-info {
+    min-width: 45px;
+    font-size: 0.75rem;
+  }
+  .battle-row .row-info div {
+    font-size: 0.7rem;
+  }
+  .battle-row .row-info .row-counter {
+    font-size: 0.8rem;
+  }
+  .card,
+  .card-slots .card,
+  .cards-hand-container .card {
+    width: 35px !important;
+    height: 42px !important;
+    font-size: 0.6rem !important;
+    border-radius: 2px;
+  }
+  .card .card-art,
+  .card-slots .card .card-art,
+  .cards-hand-container .card .card-art,
+  .card .card-description,
+  .card-slots .card .card-description,
+  .cards-hand-container .card .card-description {
+    display: none !important;
+  }
+  .card .card-power,
+  .card-slots .card .card-power,
+  .cards-hand-container .card .card-power {
+    font-size: 0.65rem;
+    top: 1px;
+    left: 2px;
+  }
+  .card .card-name,
+  .card-slots .card .card-name,
+  .cards-hand-container .card .card-name {
+    font-size: 0.55rem;
+    bottom: 1px;
+    text-align: center;
+  }
+  .player-hand-section {
+    height: 65px;
+    padding: 2px;
+    border-top: 1px solid rgba(0, 240, 255, 0.2);
+  }
+  .player-hand-section .hand-header {
+    font-size: 0.7rem;
+    margin-bottom: 2px;
+  }
+  .player-hand-section .cards-hand-container {
+    height: 45px;
+    gap: 4px;
+    justify-content: center;
+  }
+}
