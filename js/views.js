@@ -23,7 +23,7 @@ export function renderMainMenu() {
 export function renderRankingView() {
     routingContainer.innerHTML = `
         <div class="ranking-container">
-            <h3>🏆 TOP 10 REPREZENTANTÓW MIASTA</h3>
+            <h3> TOP 10 </h3>
             <table class="ranking-table">
                 <thead><tr><th>Lp.</th><th>Runner</th><th>Reputacja</th><th>Czas sesji</th></tr></thead>
                 <tbody id="ranking-rows"><tr><td colspan="4">Pobieranie logów z sieci Arasaki...</td></tr></tbody>
