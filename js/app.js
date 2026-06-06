@@ -217,7 +217,6 @@ function checkRoundWinner() {
 }
 
 // 3. OBSŁUGA RANKINGU (API)
-// Wysyłanie wyniku z uwzględnieniem statusu wygranej
 export async function sendScoreToRanking(scoreData) {
     try {
         const response = await fetch('/api/ranking', {
@@ -248,7 +247,7 @@ export async function loadRankingData() {
         }
         ranking.forEach((player, index) => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${index + 1}</strong></td><td>${player.name}</td><td>${player.score} pkt</td><td>${player.time}</td>`;
+            tr.innerHTML = `<td><strong>${index + 1}</strong></td><td>${player.name}</td><td>${player.score} SC</td><td>${player.time}</td>`;
             rowsContainer.appendChild(tr);
         });
     } catch (error) { rowsContainer.innerHTML = `<tr><td colspan="4" style="color:#ff5555;">Błąd połączenia.</td></tr>`; }

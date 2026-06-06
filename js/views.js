@@ -131,18 +131,14 @@ export function renderGameBoard() {
 export function renderEndGameView() {
     if (gameTimerInterval) clearInterval(gameTimerInterval);
     
-    let resultTitle = playerWins > botWins ? "PRZEŁAMANIE SYSTEMU!" : (botWins > playerWins ? "KRYTYCZNA CZYSTKA SIECI" : "ZAKLESZCZENIE SYGNAŁU");
-    let resultClass = playerWins > botWins ? "win-theme" : (botWins > playerWins ? "lose-theme" : "draw-theme");
+    const isPlayerWinner = playerWins > botWins;
+    let resultTitle = isPlayerWinner ? "PRZEŁAMANIE SYSTEMU!" : (botWins > playerWins ? "KRYTYCZNA CZYSTKA SIECI" : "ZAKLESZCZENIE SYGNAŁU");
+    let resultClass = isPlayerWinner ? "win-theme" : (botWins > playerWins ? "lose-theme" : "draw-theme");
     const finalTime = document.getElementById('game-time').textContent;
     const finalScore = parseInt(document.getElementById('player-round-score').textContent);
 
-    routingContainer.innerHTML = `
-        <div class="end-game-screen ${resultClass}">
-            <h2 class="end-game-title">${resultTitle}</h2>
-            <div class="end-game-stats">
-                <div class="stat-box"><span>Zdobyty kredyt:</span><strong>${finalScore} SC</strong></div>
-                <div class="stat-box"><span>Czas hackowania:</span><strong>${finalTime}</strong></div>
-            </div>
+    const actionSection = isPlayerWinner 
+        ? `
             <form id="ranking-form" class="end-game-form">
                 <label for="player-name-input">Podpisz pakiety danych swoim aliasem (ID):</label>
                 <input type="text" id="player-name-input" required minlength="3" maxlength="15" placeholder="V" autofocus>
@@ -151,24 +147,40 @@ export function renderEndGameView() {
                     <button type="button" id="skip-ranking-btn" class="menu-btn btn-secondary">WYCZYŚĆ ŚLADY</button>
                 </div>
             </form>
+          `
+        : `
+            <div class="end-game-form" style="text-align: center;">
+                <p style="color: #ff5555; margin-bottom: 20px;">Twój ślad sieciowy został skasowany. Tylko zwycięzcy trafiają do bazy danych Arasaki.</p>
+                <button type="button" id="back-to-menu-direct-btn" class="menu-btn">POWRÓT DO KONSOLI GŁÓWNEJ</button>
+            </div>
+          `;
+
+    routingContainer.innerHTML = `
+        <div class="end-game-screen ${resultClass}">
+            <h2 class="end-game-title">${resultTitle}</h2>
+            <div class="end-game-stats">
+                <div class="stat-box"><span>Zdobyty kredyt:</span><strong>${finalScore} SC</strong></div>
+                <div class="stat-box"><span>Czas hackowania:</span><strong>${finalTime}</strong></div>
+            </div>
+            ${actionSection}
         </div>
     `;
 
-    document.getElementById('ranking-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('player-name-input').value;
-        
-        // Sprawdzenie, czy gracz realnie wygrał z botem
-        const playerWon = playerWins > botWins;
-
-        // Wysyłamy dodatkową flagę isWin do serwera
-        await sendScoreToRanking({ 
-            name: username, 
-            score: finalScore, 
-            time: finalTime,
-            isWin: playerWon 
+    if (isPlayerWinner) {
+        document.getElementById('ranking-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('player-name-input').value;
+            
+            await sendScoreToRanking({ 
+                name: username, 
+                score: finalScore, 
+                time: finalTime,
+                isWin: true 
+            });
+            renderMainMenu();
         });
-        renderMainMenu();
-    });
-    document.getElementById('skip-ranking-btn').addEventListener('click', renderMainMenu);
+        document.getElementById('skip-ranking-btn').addEventListener('click', renderMainMenu);
+    } else {
+        document.getElementById('back-to-menu-direct-btn').addEventListener('click', renderMainMenu);
+    }
 }

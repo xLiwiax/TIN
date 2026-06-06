@@ -6,11 +6,10 @@ const path = require('path');
 const app = express();
 const FILE_PATH = path.join(__dirname, 'ranking.json');
 
-// Konfiguracja middleware
 app.use(cors());
 app.use(express.json());
 
-// Serwowanie plików statycznych frontendu
+// 
 app.use(express.static(path.join(__dirname, '../')));
 
 // Odczyt pliku bazy danych rankingu
@@ -51,14 +50,14 @@ app.get('/api/ranking', (req, res) => {
 // Zapis nowego rekordu w rankingu
 app.post('/api/ranking', (req, res) => {
     try {
-        const { name, score, time } = req.body;
+        const { name, score, time, isWin } = req.body;
 
         if (!name || score === undefined || !time) {
             return res.status(400).json({ error: 'Brakujące parametry' });
         }
 
         const ranking = readRankingFile();
-        ranking.push({ name, score, time, date: new Date().toISOString() });
+        ranking.push({ name, score, time, isWin: isWin || false, date: new Date().toISOString() });
         
         fs.writeFileSync(FILE_PATH, JSON.stringify(ranking, null, 2));
         res.status(201).json({ message: 'Wynik zapisany' });
@@ -73,6 +72,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Serwer aktywny na porcie: ${PORT}`);
 });
+
 
 /* STARTA WERSJA
 const express = require('express');
