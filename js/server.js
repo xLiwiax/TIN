@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const FILE_PATH = path.join(__dirname, 'ranking.json');
+const FILE_PATH = path.join(__dirname, '../ranking.json');
 
 app.use(cors());
 app.use(express.json());
