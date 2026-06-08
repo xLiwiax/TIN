@@ -18,16 +18,17 @@ async function loadCardsData() {
 export function startNewGame() {
     cfg.setPlayerWins(0); cfg.setBotWins(0); cfg.setPlayerPassed(false); cfg.setBotPassed(false);
     cfg.setIsBotTurning(false); cfg.setIsRoundEnding(false); cfg.setRoundMessageBanner(""); cfg.setGameSeconds(0);
-    resetBoardState();
+    resetBoardState();//reset
 
     const extendedDatabase = [...cfg.CARD_DATABASE, ...cfg.CARD_DATABASE, ...cfg.CARD_DATABASE];
+    //id
     let pool = extendedDatabase.map(card => new Card(card.id + Math.random(), card.name, card.baseStrength, card.row, card.color, card.specialAbility));
     
-    for (let i = pool.length - 1; i > 0; i--) {
+    for (let i = pool.length - 1; i > 0; i--) {//-tasowanie-!
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    cfg.setDeckPool(pool);
+    cfg.setDeckPool(pool);//roszdanei
     cfg.setPlayerHand(pool.splice(0, 10));
     cfg.setBotHand(pool.splice(0, 10));
 
@@ -35,13 +36,13 @@ export function startNewGame() {
     updateDOM();
     startTimer();
 }
-
+                                                //res bord
 function resetBoardState() {
     cfg.setPlayerBoard({ close: [], ranged: [], siege: [] });
     cfg.setBotBoard({ close: [], ranged: [], siege: [] });
     cfg.setPlayerPassed(false); cfg.setBotPassed(false); cfg.setIsBotTurning(false);
 }
-
+                                                //time
 function startTimer() {
     if (cfg.gameTimerInterval) clearInterval(cfg.gameTimerInterval);
     cfg.setGameTimerInterval(setInterval(() => {
@@ -52,7 +53,7 @@ function startTimer() {
         if (timerSpan) timerSpan.textContent = `${mins}:${secs}`;
     }, 1000));
 }
-
+                                                //up dookm
 function updateDOM() {
     document.getElementById('player-wins').textContent = cfg.playerWins;
     document.getElementById('bot-wins').textContent = cfg.botWins;
@@ -70,18 +71,18 @@ function updateDOM() {
     document.getElementById('bot-status').textContent = cfg.botPassed ? "Spasował" : "W grze";
     
     ['close', 'ranged', 'siege'].forEach(rowType => {
-        const pRow = document.querySelector(`#player-${rowType} .card-slots`);
+        const pRow = document.querySelector(`#player-${rowType} .card-slots`);//karty pl
         pRow.innerHTML = '';
         cfg.playerBoard[rowType].forEach(card => pRow.appendChild(createCardDOM(card)));
 
-        const bRow = document.querySelector(`#bot-${rowType} .card-slots`);
+        const bRow = document.querySelector(`#bot-${rowType} .card-slots`);//karty bot
         bRow.innerHTML = '';
         cfg.botBoard[rowType].forEach(card => bRow.appendChild(createCardDOM(card)));
     });
     calculateScores();
     renderPlayerHandDOM();
 }
-
+                                                //dod kart
 function renderPlayerHandDOM() {
     const handContainer = document.getElementById('player-hand');
     handContainer.innerHTML = '';
@@ -93,7 +94,7 @@ function renderPlayerHandDOM() {
         handContainer.appendChild(cardEl);
     });
 }
-
+                                                //wyniki
 function calculateScores() {
     let playerTotal = 0, botTotal = 0;
     ['close', 'ranged', 'siege'].forEach(rowType => {
@@ -108,20 +109,20 @@ function calculateScores() {
     document.getElementById('player-round-score').textContent = playerTotal;
     document.getElementById('bot-round-score').textContent = botTotal;
 }
-
+                                                //ruch
 function playerPlayCard(index) {
     if (cfg.isBotTurning || cfg.playerPassed) return;
-    cfg.setRoundMessageBanner("");
+    cfg.setRoundMessageBanner("");//czysie da
     const card = cfg.playerHand.splice(index, 1)[0];
     
-    if (card.specialAbility === 'draw_card') {
+    if (card.specialAbility === 'draw_card') {//czy szpieg
         cfg.botBoard[card.row].push(card);
         cfg.playerHand.push(...cfg.deckPool.splice(0, 2));
     } else {
         cfg.playerBoard[card.row].push(card);
     }
 
-    if (!cfg.botPassed && cfg.botHand.length > 0) {
+    if (!cfg.botPassed && cfg.botHand.length > 0) {//bot
         cfg.setIsBotTurning(true); updateDOM();
         setTimeout(botTurn, 800);
     } else {
@@ -129,35 +130,32 @@ function playerPlayCard(index) {
         if (cfg.playerHand.length === 0) playerPassTurn();
     }
 }
-
+                                                //ppass
 export function playerPassTurn() {
     cfg.setPlayerPassed(true); cfg.setIsBotTurning(false); cfg.setRoundMessageBanner(""); updateDOM();
-    if (!cfg.botPassed && cfg.botHand.length > 0) {
-        if (Math.random() < 0.5) {
+    if (!cfg.botPassed && cfg.botHand.length > 0) {//niepas i karata
+        if (Math.random() < 0.5) {//czy da
             const card = cfg.botHand.splice(0, 1)[0];
-            if (card.specialAbility === 'draw_card') {
+            if (card.specialAbility === 'draw_card') {//szpieg
                 cfg.playerBoard[card.row].push(card);
                 cfg.botHand.push(...cfg.deckPool.splice(0, 2));
             } else {
                 cfg.botBoard[card.row].push(card);
             }
-            cfg.setBotPassed(true); cfg.setIsBotTurning(false); updateDOM();
-            setTimeout(checkRoundWinner, 1000);
-        } else {
-            cfg.setBotPassed(true); cfg.setIsBotTurning(false); updateDOM();
-            setTimeout(checkRoundWinner, 1000);
         }
+        cfg.setBotPassed(true); cfg.setIsBotTurning(false); updateDOM();//bot pass
+        setTimeout(checkRoundWinner, 1000);
     } else {
         checkRoundWinner();
     }
 }
-
+                                                //bot
 function botTurn() {
     if (cfg.botPassed || cfg.botHand.length === 0) {
         cfg.setBotPassed(true); cfg.setIsBotTurning(false); updateDOM();
         return;
     }
-    const pScore = parseInt(document.getElementById('player-round-score').textContent) || 0;
+    const pScore = parseInt(document.getElementById('player-round-score').textContent) || 0;//żeby nie walneło
     const bScore = parseInt(document.getElementById('bot-round-score').textContent) || 0;
 
     if (cfg.playerPassed && bScore > pScore) {
@@ -183,7 +181,7 @@ function botTurn() {
         if (cfg.playerHand.length === 0 && !cfg.playerPassed) playerPassTurn();
     }
 }
-
+                                                //winner
 function checkRoundWinner() {
     if (cfg.isRoundEnding) return;
     cfg.setIsRoundEnding(true);
@@ -191,10 +189,16 @@ function checkRoundWinner() {
     const pScore = parseInt(document.getElementById('player-round-score').textContent) || 0;
     const bScore = parseInt(document.getElementById('bot-round-score').textContent) || 0;
 
-    if (pScore > bScore) { cfg.setPlayerWins(cfg.playerWins + 1); cfg.setRoundMessageBanner(`Wygrałeś rundę! Wynik: ${pScore} do ${bScore}`); }
-    else if (bScore > pScore) { cfg.setBotWins(cfg.botWins + 1); cfg.setRoundMessageBanner(`Bot wygrał rundę! Wynik: ${bScore} do ${pScore}`); }
-    else { cfg.setPlayerWins(cfg.playerWins + 1); cfg.setBotWins(cfg.botWins + 1); cfg.setRoundMessageBanner(`Remis w rundzie! Wynik: ${pScore} do ${bScore}`); }
+    // 1.REMIS
+    if (pScore >= bScore) cfg.setPlayerWins(cfg.playerWins + 1);
+    if (bScore >= pScore) cfg.setBotWins(cfg.botWins + 1);
 
+    // 2. NIE REMIS
+    const title = pScore > bScore ? "Wygrałeś rundę!" : (bScore > pScore ? "Bot wygrał rundę!" : "Remis w rundzie!");
+
+    // WYNIK
+    cfg.setRoundMessageBanner(`${title} Wynik: ${Math.max(pScore, bScore)} do ${Math.min(pScore, bScore)}`);
+    
     cfg.setIsBotTurning(true); updateDOM();
 
     setTimeout(() => {
@@ -202,7 +206,7 @@ function checkRoundWinner() {
             renderEndGameView();
         } else {
             resetBoardState();
-            const pDraw = Math.min(3, 10 - cfg.playerHand.length);
+            const pDraw = Math.min(3, 10 - cfg.playerHand.length);  //dobieranie jeslinie>7
             const bDraw = Math.min(3, 10 - cfg.botHand.length);
             cfg.playerHand.push(...cfg.deckPool.splice(0, pDraw));
             cfg.botHand.push(...cfg.deckPool.splice(0, bDraw));
